@@ -1,0 +1,4 @@
+com\jobtracker\controller\ApplicationController.class
+com\jobtracker\JobTrackerApplication.class
+com\jobtracker\repository\ApplicationRepository.class
+com\jobtracker\model\Application.class

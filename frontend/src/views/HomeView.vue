@@ -1,0 +1,132 @@
+<template>
+  <div>
+    <!-- 统计栏 -->
+    <div class="stats">
+      <div class="stat-card" v-for="s in statuses" :key="s.label">
+        <div class="stat-num">{{ countByStatus(s.label) }}</div>
+        <div class="stat-label">{{ s.label }}</div>
+      </div>
+    </div>
+
+    <!-- 添加表单 -->
+    <div class="card">
+      <h2>Add Application</h2>
+      <div class="form-row">
+        <input v-model="form.company" placeholder="Company" />
+        <input v-model="form.position" placeholder="Position" />
+        <input v-model="form.appliedDate" type="date" />
+        <select v-model="form.status">
+          <option v-for="s in statuses" :key="s.label" :value="s.label">{{ s.label }}</option>
+        </select>
+        <button @click="addApplication">Add</button>
+      </div>
+      <input v-model="form.notes" placeholder="Notes (optional)" class="notes-input" />
+    </div>
+
+    <!-- 筛选 -->
+    <div class="filter-row">
+      <button v-for="s in ['All', ...statuses.map(s=>s.label)]" :key="s"
+        :class="['filter-btn', filter === s ? 'active' : '']"
+        @click="filter = s">{{ s }}</button>
+    </div>
+
+    <!-- 列表 -->
+    <div class="card" v-for="app in filteredApps" :key="app.id">
+      <div class="app-row">
+        <div class="app-info">
+          <span class="company">{{ app.company }}</span>
+          <span class="position">{{ app.position }}</span>
+          <span class="date">{{ app.appliedDate || 'No date' }}</span>
+          <span :class="['badge', app.status.toLowerCase().replace(' ', '-')]">{{ app.status }}</span>
+        </div>
+        <div class="app-actions">
+          <select :value="app.status" @change="updateStatus(app, $event.target.value)">
+            <option v-for="s in statuses" :key="s.label" :value="s.label">{{ s.label }}</option>
+          </select>
+          <button class="del-btn" @click="deleteApplication(app.id)">✕</button>
+        </div>
+      </div>
+      <div v-if="app.notes" class="notes">{{ app.notes }}</div>
+    </div>
+
+    <div v-if="filteredApps.length === 0" class="empty">No applications yet. Add one above!</div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+
+const API = 'http://localhost:8080/api/applications'
+const applications = ref([])
+const filter = ref('All')
+const statuses = [
+  { label: 'Applied' },
+  { label: 'Phone Screen' },
+  { label: 'Interview' },
+  { label: 'Offer' },
+  { label: 'Rejected' }
+]
+const form = ref({ company: '', position: '', status: 'Applied', appliedDate: '', notes: '' })
+
+const filteredApps = computed(() =>
+  filter.value === 'All' ? applications.value : applications.value.filter(a => a.status === filter.value)
+)
+const countByStatus = (s) => applications.value.filter(a => a.status === s).length
+
+async function fetchAll() {
+  const res = await fetch(API)
+  applications.value = await res.json()
+}
+
+async function addApplication() {
+  if (!form.value.company || !form.value.position) return alert('Company and Position are required!')
+  await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form.value) })
+  form.value = { company: '', position: '', status: 'Applied', appliedDate: '', notes: '' }
+  fetchAll()
+}
+
+async function updateStatus(app, newStatus) {
+  await fetch(`${API}/${app.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...app, status: newStatus }) })
+  fetchAll()
+}
+
+async function deleteApplication(id) {
+  await fetch(`${API}/${id}`, { method: 'DELETE' })
+  fetchAll()
+}
+
+onMounted(fetchAll)
+</script>
+
+<style scoped>
+.stats { display: flex; gap: 16px; margin-bottom: 24px; }
+.stat-card { background: white; border-radius: 10px; padding: 16px 24px; text-align: center; flex: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.stat-num { font-size: 32px; font-weight: bold; color: #2c3e50; }
+.stat-label { font-size: 13px; color: #888; margin-top: 4px; }
+.card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.card h2 { margin-bottom: 14px; font-size: 16px; color: #555; }
+.form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.form-row input, .form-row select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.form-row button { padding: 8px 20px; background: #2c3e50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.form-row button:hover { background: #3d5166; }
+.notes-input { width: 100%; margin-top: 10px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-btn { padding: 6px 16px; border: 1px solid #ddd; border-radius: 20px; background: white; cursor: pointer; font-size: 13px; }
+.filter-btn.active { background: #2c3e50; color: white; border-color: #2c3e50; }
+.app-row { display: flex; justify-content: space-between; align-items: center; }
+.app-info { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.company { font-weight: bold; font-size: 16px; }
+.position { color: #555; }
+.date { color: #aaa; font-size: 13px; }
+.app-actions { display: flex; gap: 8px; align-items: center; }
+.app-actions select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+.del-btn { background: #e74c3c; color: white; border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.notes { margin-top: 10px; color: #777; font-size: 13px; background: #f9f9f9; padding: 8px 12px; border-radius: 6px; }
+.badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+.badge.applied { background: #d5e8d4; color: #2e7d32; }
+.badge.phone-screen { background: #dae8fc; color: #1565c0; }
+.badge.interview { background: #fff3cd; color: #f57f17; }
+.badge.offer { background: #d4edda; color: #155724; }
+.badge.rejected { background: #f8d7da; color: #721c24; }
+.empty { text-align: center; color: #aaa; padding: 40px; }
+</style>
