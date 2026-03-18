@@ -216,10 +216,38 @@ async function deleteApplication(id) {
   fetchAll()
 }
 
+const SEED_DATA = [
+  { company: 'Google', position: 'Frontend Engineer', status: 'Interview', appliedDate: daysAgo(3), notes: 'Referred by a friend' },
+  { company: 'Meta', position: 'Software Engineer', status: 'Phone Screen', appliedDate: daysAgo(7), notes: '' },
+  { company: 'Amazon', position: 'Full Stack Developer', status: 'Rejected', appliedDate: daysAgo(14), notes: 'OA completed' },
+  { company: 'Apple', position: 'iOS Developer', status: 'Applied', appliedDate: daysAgo(2), notes: '' },
+  { company: 'Netflix', position: 'Senior Engineer', status: 'Offer', appliedDate: daysAgo(21), notes: 'Negotiating salary' },
+  { company: 'Stripe', position: 'Backend Engineer', status: 'Interview', appliedDate: daysAgo(10), notes: 'System design round' },
+  { company: 'Airbnb', position: 'React Developer', status: 'Applied', appliedDate: daysAgo(1), notes: '' },
+  { company: 'Spotify', position: 'Platform Engineer', status: 'Rejected', appliedDate: daysAgo(28), notes: 'No feedback provided' },
+  { company: 'LinkedIn', position: 'Data Engineer', status: 'Phone Screen', appliedDate: daysAgo(5), notes: '' },
+  { company: 'Figma', position: 'UI Engineer', status: 'Applied', appliedDate: daysAgo(0), notes: 'Dream job' },
+]
+
+function daysAgo(n) {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return d.toISOString().split('T')[0]
+}
+
+async function seedData() {
+  if (applications.value.length > 0) return
+  await Promise.all(SEED_DATA.map(app =>
+    fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(app) })
+  ))
+  await fetchAll()
+}
+
 watch(applications, () => nextTick(updateCharts))
 
 onMounted(async () => {
   await fetchAll()
+  await seedData()
   nextTick(updateCharts)
 })
 </script>

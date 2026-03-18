@@ -1,4 +1,7 @@
 com\jobtracker\controller\ApplicationController.class
 com\jobtracker\JobTrackerApplication.class
+com\jobtracker\dto\AiAnalysisResponse.class
 com\jobtracker\repository\ApplicationRepository.class
 com\jobtracker\model\Application.class
+com\jobtracker\controller\AiController.class
+com\jobtracker\dto\AiAnalysisRequest.class
