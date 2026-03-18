@@ -1,0 +1,12 @@
+# Maven build output
+backend/target/
+
+# Frontend build output
+frontend/dist/
+frontend/node_modules/
+
+# Sensitive config — use application.properties.example as template
+backend/src/main/resources/application.properties
+
+# Claude Code internal files
+.claude/

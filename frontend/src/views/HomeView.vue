@@ -8,6 +8,22 @@
       </div>
     </div>
 
+    <!-- 图表区域 -->
+    <div class="charts-row">
+      <div class="card chart-card">
+        <h2>Status Distribution</h2>
+        <div class="chart-wrap">
+          <canvas ref="pieChartRef"></canvas>
+        </div>
+      </div>
+      <div class="card chart-card">
+        <h2>Weekly Applications</h2>
+        <div class="chart-wrap">
+          <canvas ref="lineChartRef"></canvas>
+        </div>
+      </div>
+    </div>
+
     <!-- 添加表单 -->
     <div class="card">
       <h2>Add Application</h2>
@@ -54,7 +70,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { Chart, registerables } from 'chart.js'
+
+Chart.register(...registerables)
 
 const API = 'http://localhost:8080/api/applications'
 const applications = ref([])
@@ -68,10 +87,112 @@ const statuses = [
 ]
 const form = ref({ company: '', position: '', status: 'Applied', appliedDate: '', notes: '' })
 
+const pieChartRef = ref(null)
+const lineChartRef = ref(null)
+let pieChart = null
+let lineChart = null
+
+const STATUS_COLORS = ['#4caf50', '#2196f3', '#ff9800', '#8bc34a', '#f44336']
+
 const filteredApps = computed(() =>
   filter.value === 'All' ? applications.value : applications.value.filter(a => a.status === filter.value)
 )
 const countByStatus = (s) => applications.value.filter(a => a.status === s).length
+
+function computeWeeklyData() {
+  const now = new Date()
+  // Find Monday of current week
+  const day = now.getDay()
+  const currentMonday = new Date(now)
+  currentMonday.setHours(0, 0, 0, 0)
+  currentMonday.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
+
+  const labels = []
+  const counts = []
+
+  for (let i = 7; i >= 0; i--) {
+    const weekStart = new Date(currentMonday)
+    weekStart.setDate(currentMonday.getDate() - i * 7)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 7)
+
+    const m = weekStart.getMonth() + 1
+    const d = weekStart.getDate()
+    labels.push(`${m}/${d}`)
+
+    const count = applications.value.filter(app => {
+      if (!app.appliedDate) return false
+      const [y, mo, da] = app.appliedDate.split('-').map(Number)
+      const date = new Date(y, mo - 1, da)
+      return date >= weekStart && date < weekEnd
+    }).length
+    counts.push(count)
+  }
+
+  return { labels, counts }
+}
+
+function updateCharts() {
+  if (!pieChartRef.value || !lineChartRef.value) return
+
+  const statusCounts = statuses.map(s => countByStatus(s.label))
+
+  if (pieChart) {
+    pieChart.data.datasets[0].data = statusCounts
+    pieChart.update()
+  } else {
+    pieChart = new Chart(pieChartRef.value, {
+      type: 'pie',
+      data: {
+        labels: statuses.map(s => s.label),
+        datasets: [{
+          data: statusCounts,
+          backgroundColor: STATUS_COLORS,
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } }
+      }
+    })
+  }
+
+  const { labels, counts } = computeWeeklyData()
+
+  if (lineChart) {
+    lineChart.data.labels = labels
+    lineChart.data.datasets[0].data = counts
+    lineChart.update()
+  } else {
+    lineChart = new Chart(lineChartRef.value, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Applications',
+          data: counts,
+          borderColor: '#2c3e50',
+          backgroundColor: 'rgba(44, 62, 80, 0.08)',
+          tension: 0.35,
+          fill: true,
+          pointBackgroundColor: '#2c3e50',
+          pointRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    })
+  }
+}
 
 async function fetchAll() {
   const res = await fetch(API)
@@ -95,7 +216,12 @@ async function deleteApplication(id) {
   fetchAll()
 }
 
-onMounted(fetchAll)
+watch(applications, () => nextTick(updateCharts))
+
+onMounted(async () => {
+  await fetchAll()
+  nextTick(updateCharts)
+})
 </script>
 
 <style scoped>
@@ -103,6 +229,11 @@ onMounted(fetchAll)
 .stat-card { background: white; border-radius: 10px; padding: 16px 24px; text-align: center; flex: 1; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .stat-num { font-size: 32px; font-weight: bold; color: #2c3e50; }
 .stat-label { font-size: 13px; color: #888; margin-top: 4px; }
+.charts-row { display: flex; gap: 16px; margin-bottom: 24px; }
+.chart-card { flex: 1; min-width: 0; }
+.chart-card h2 { margin-bottom: 16px; font-size: 15px; color: #555; }
+.chart-wrap { position: relative; height: 240px; display: flex; align-items: center; justify-content: center; }
+.chart-wrap canvas { max-height: 220px; }
 .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .card h2 { margin-bottom: 14px; font-size: 16px; color: #555; }
 .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
