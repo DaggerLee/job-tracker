@@ -55,8 +55,3 @@ Open http://localhost:5173
 ### AI Analysis
 The AI analysis feature requires an Anthropic API key.  
 Get one at https://console.anthropic.com — enter it directly in the UI, it is never stored.
-
-## Background
-Built to track my own internship search. The AI analysis feature was inspired by my work 
-at Google Maps and Shanghai Intelligent Transportation, where I integrated ML and AI APIs 
-into production products.
